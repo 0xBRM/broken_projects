@@ -1,0 +1,143 @@
+#include <Event.h>
+#include <Timer.h>
+#include <SoftwareSerial.h>
+#include <WiFiServer.h>
+#include <WiFiUdp.h>
+#include <WiFiClient.h>
+#include <WiFi.h>
+#include <SPI.h>
+#include <DHT.h>
+
+// TODO: break this up; add colours to temperatures
+// based on proximity to upper limit; temperature exposure over time;
+// humidity exposure over time;
+// TODO will need struct eventually to beautify ledWarning code
+// TODO use pointers in array to lower memory overhead
+// TODO make sure to use the appropriate ints based on range to reduce memory overhead
+// TODO moves functions to separate file, too much clutter
+// TODO add getHumidity() methods for DHT-22
+// TODO replace collectData with actual 1000ms timer
+// Refactor everything
+// NOTE compiler complains about ints not initialised to 0, give no fucks
+
+Timer t;
+int collectData;
+
+// humidityPin1 = 1;
+// humidityPin2 = 2;
+// temperaturePin = 3;
+// airflow pin = 4;
+const uint8_t pin[3] = {1, 2, 3, 4};
+uint8_t pinLen = sizeof(pin);
+uint8_t humidity1 = pin[0];
+uint8_t humidity2 = pin[1];
+uint8_t temperature = pin[2];
+uint8_t airflow = pin[3];
+
+// DHT (humidity) sensor crap
+
+
+int windADunits = analogRead(airflow);
+float windMPH =  pow((((float)windADunits - 264.0) / 85.6814), 3.36814);
+float windKMH = windMPH * 1.60934;
+
+const uint8_t ledWarningPin = 6;
+
+  // Temperature sensor
+int tempRawAD = analogRead(temperature);  
+float degreesC = ((((float)tempRawAD * 5.0) / 1024.0) - 0.400) / .0195; 
+
+// takes the average of two signed ints
+int avg(int a, int b) {
+  if ((a < 0) == (b < 0)) {  // a,b same sign
+    return a/2 + b/2 + (a%2 + b%2)/2;
+  }
+  return (a+b)/2;
+}
+
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Set the mode of array of pins to INPUT
+  for(uint8_t p=0; p<pinLen; p++)
+   {
+       pinMode(pin[p], INPUT);
+   }
+
+  // This LED turns on if humidityMean, temperature,
+  // or lightMean drops below or goes over a certain value
+  pinMode(ledWarningPin, OUTPUT);
+
+  int printEverything = t.every(1000, printInfo);
+  int ledWarning = t.every(1000, ledWarning);
+
+  // Humidity sensor crap
+  dht.setup(humidity1);
+  if (60000 <= dht.getMinimumSamplingPeriod()) {
+    Serial.println("Warning: update interval is not supported by the sensor.");
+  sleep(dht.getMinimumSamplingPeriod());
+
+  dht.setup(humidity2);
+  if (60000 <= dht.getMinimumSamplingPeriod()) {
+    Serial.println("Warning: update interval is not supported by the sensor.");
+  sleep(dht.getMinimumSamplingPeriod());
+
+}
+
+void loop() {
+  t.update();
+}
+
+void ledWarning() {
+
+
+  // led warning, iterate through pin array and check
+  // for values < minSafetyValues and values > maxSafetyValues
+  // humidity, temperature, airflow respectively
+  // there HAS to be a way to compare arrays more elegantly
+
+  const uint8_t minSafetyValues[3] = {75, 0, 1};
+  const uint8_t maxSafetyValues[3] = {85, 3, 10};
+
+  uint8_t minSafetyValueLen = sizeof(minSafetyValues);
+  uint8_t maxSafetyValueLen = sizeof(maxSafetyValues);
+
+
+// Logic for the warning led, yuck
+  if (humidity < minSafetyValues[0] || humidity > maxSafetyValues[0]
+      || temperature < minSafetyValues[1] || temperature > maxSafetyValues[1]
+      || airflow < minSafetyValues[2] || airflow > maxSafetyValues[2]){
+    digitalWrite(ledWarningPin, HIGH);
+  }
+
+}
+
+// collects humidity data every minute, not ready
+void humidity(){
+
+  dht.readSensor(true);
+  float humidity1 = dht.getHumidity();
+  int humidityCollect = t.every(60000, humidity1);
+  float humidity2 = dht.getHumidity();
+  int humidityCollect = t.every(60000, humidity1);
+  int humidityCollect = t.every(60000, humidity2);
+
+
+  float humidityMean = ;
+  Serial.println(humidity);
+}
+uint8_t humidityMean = 0; // will take mean of humidity probes, if it stays humid for too long,
+
+
+void printInfo(){
+    // Print everything
+  // Eventually send via wifi and add to db
+  Serial.println(degreesC);
+  Serial.println(windKMH);
+  Serial.println(" MPH\t");  
+
+  // Mean values will be subjected to a different delay and be calculated once every 24 hours
+  Serial.println(humidityMean);
+
+}

@@ -1,0 +1,1 @@
+Here lie a myriad of incomplete, deeply broken projects that I never got around to finishing but one day might. But probably not because I will find the code even uglier and messier than I already do.
